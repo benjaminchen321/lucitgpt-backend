@@ -4,7 +4,6 @@ import time
 
 import psycopg2
 from dotenv import load_dotenv
-from elasticsearch import Elasticsearch
 from fastapi import FastAPI, HTTPException
 from openai import OpenAI
 from sentry_sdk.integrations.asgi import SentryAsgiMiddleware
@@ -14,29 +13,25 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 from init_db import Client, Vehicle, ServiceHistory, Appointment
 import sentry_sdk
 
-
 load_dotenv()
-
 
 # Initialize FastAPI app
 app = FastAPI()
+
 # Sentry
 SENTRY_DSN = os.getenv("SENTRY_DSN")
 if SENTRY_DSN:
     sentry_sdk.init(dsn=SENTRY_DSN, traces_sample_rate=1.0)
 app.add_middleware(SentryAsgiMiddleware)
 
-
 # OpenAI Client Initialization
 OPENAI_CLIENT = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
-
 
 # SQLAlchemy Base
 Base = declarative_base()
 
-
 # CORS
-origins = ["https://localhost:3000"]
+origins = ["*"]  # Allow all origins for public access; restrict if needed
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -45,24 +40,22 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
 # PostgreSQL Connection
-conn = psycopg2.connect(
-    database="lucidgpt_db",
-    user="lucid_user",
-    password="lucid_password",
-    host="localhost",
-    port="5432",
-)
-cursor = conn.cursor()
-
-
-# Elasticsearch Connection
-es = Elasticsearch(["http://localhost:9200"])
-
-
-#database connection
 DATABASE_URL = os.environ.get("DATABASE_URL")
+if not DATABASE_URL:
+    raise ValueError("DATABASE_URL environment variable is not set.")
+
+# Adjust the DATABASE_URL for psycopg2
+if DATABASE_URL.startswith("postgresql+psycopg2"):
+    DATABASE_URL = DATABASE_URL.replace("+psycopg2", "")
+
+try:
+    conn = psycopg2.connect(DATABASE_URL)
+    cursor = conn.cursor()
+except Exception as e:
+    raise RuntimeError(f"Failed to connect to the database: {e}")
+
+# Database connection for SQLAlchemy
 engine = create_engine(
     DATABASE_URL,
     connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {},
@@ -74,7 +67,6 @@ session = SessionLocal()
 class ChatRequest(BaseModel):
     query: str
     user_id: str
-
 
 @app.post("/chat")
 async def chat_with_lucidgpt(request: ChatRequest):
@@ -109,22 +101,10 @@ async def chat_with_lucidgpt(request: ChatRequest):
         print("Error in /chat endpoint:", str(e))
         raise HTTPException(status_code=500, detail="An error occurred while processing your request.")
 
-
-@app.get("/search/{query}")
-async def search_faq(query: str):
-    try:
-        # Search Elasticsearch for FAQs
-        results = es.search(index="faqs", body={"query": {"match": {"content": query}}})
-        return {"results": results["hits"]["hits"]}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
 # Health Check Endpoint
 @app.get("/health")
 async def health_check():
     return {"status": "ok"}
-
 
 @app.get("/history/{user_id}")
 async def get_user_history(user_id: str):
@@ -139,7 +119,6 @@ async def get_user_history(user_id: str):
             for row in history
         ]
     }
-
 
 @app.get("/client/{client_id}/metadata")
 def get_client_metadata(client_id: int):
