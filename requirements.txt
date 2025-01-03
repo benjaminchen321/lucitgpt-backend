@@ -1,0 +1,14 @@
+fastapi
+uvicorn
+sqlalchemy
+psycopg2-binary
+python-dotenv
+faker
+sentry-sdk
+pytest
+pytest-asyncio
+pytest-cov
+httpx
+requests
+elasticsearch
+openai
