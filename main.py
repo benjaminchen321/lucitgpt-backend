@@ -4,7 +4,7 @@ import time
 
 import psycopg2
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from openai import OpenAI
 from sentry_sdk.integrations.asgi import SentryAsgiMiddleware
 from pydantic import BaseModel
@@ -18,7 +18,7 @@ load_dotenv()
 # Initialize FastAPI app
 app = FastAPI()
 
-# Sentry
+# SENTRY
 SENTRY_DSN = os.getenv("SENTRY_DSN")
 if SENTRY_DSN:
     sentry_sdk.init(dsn=SENTRY_DSN, traces_sample_rate=1.0)
@@ -120,15 +120,68 @@ async def get_user_history(user_id: str):
         ]
     }
 
-@app.get("/client/{client_id}/metadata")
-def get_client_metadata(client_id: int):
-    client = session.query(Client).filter(Client.id == client_id).first()
+@app.get("/client/metadata/search")
+def search_clients(name: str = Query(None), email: str = Query(None), phone: str = Query(None)):
+    if not name and not email and not phone:
+        raise HTTPException(status_code=400, detail="At least one search parameter (name, email, phone) is required.")
+
+    query = session.query(Client)
+
+    if name:
+        query = query.filter(Client.name.ilike(f"%{name}%"))
+    if email:
+        query = query.filter(Client.email.ilike(f"%{email}%"))
+    if phone:
+        query = query.filter(Client.phone.ilike(f"%{phone}%"))
+
+    clients = query.all()
+
+    if not clients:
+        raise HTTPException(status_code=404, detail="No clients found matching the search criteria.")
+
+    return [{
+        "id": client.id,
+        "name": client.name,
+        "email": client.email,
+        "phone": client.phone
+    } for client in clients]
+
+@app.get("/client/metadata")
+def search_client_metadata(
+    client_id: int = Query(None),
+    email: str = Query(None),
+    phone: str = Query(None),
+):
+    if not client_id and not email and not phone:
+        raise HTTPException(status_code=400, detail="At least one search parameter (client_id, email, phone) is required.")
+
+    query = session.query(Client)
+
+    if client_id:
+        query = query.filter(Client.id == client_id)
+    if email:
+        query = query.filter(Client.email == email)
+    if phone:
+        query = query.filter(Client.phone == phone)
+
+    client = query.first()
+
     if not client:
         raise HTTPException(status_code=404, detail="Client not found")
 
-    vehicle = session.query(Vehicle).filter(Vehicle.client_id == client_id).first()
+    vehicle = session.query(Vehicle).filter(Vehicle.client_id == client.id).first()
     if not vehicle:
-        raise HTTPException(status_code=404, detail="Vehicle not found")
+        return {
+            "client": {
+                "name": client.name,
+                "email": client.email,
+                "phone": client.phone,
+            },
+            "vehicle": None,
+            "service_history": [],
+            "appointments": [],
+            "message": "Vehicle not found for this client",
+        }
 
     service_history = session.query(ServiceHistory).filter(ServiceHistory.vin == vehicle.vin).all()
 
@@ -138,47 +191,19 @@ def get_client_metadata(client_id: int):
         "client": {
             "name": client.name,
             "email": client.email,
-            "phone": client.phone
+            "phone": client.phone,
         },
         "vehicle": {
             "model": vehicle.model,
             "year": vehicle.year,
             "mileage": vehicle.mileage,
             "warranty_exp": vehicle.warranty_exp,
-            "service_plan": vehicle.service_plan
+            "service_plan": vehicle.service_plan,
         },
         "service_history": [
             {"date": sh.date, "service_type": sh.service_type, "notes": sh.notes} for sh in service_history
         ],
         "appointments": [
             {"date": appt.date, "time": appt.time, "service_type": appt.service_type, "status": appt.status} for appt in appointments
-        ]
+        ],
     }
-
-@app.get("/api/customers")
-def get_customers():
-    try:
-        customers = session.query(Client).all()
-        return [{"id": customer.id, "name": customer.name, "email": customer.email, "phone": customer.phone} for customer in customers]
-    except Exception as e:
-        raise HTTPException(status_code=500, detail="Failed to fetch customers")
-
-@app.get("/api/customers/{customer_id}")
-def get_customer_details(customer_id: int):
-    try:
-        customer = session.query(Client).filter(Client.id == customer_id).first()
-        if not customer:
-            raise HTTPException(status_code=404, detail="Customer not found")
-
-        vehicles = session.query(Vehicle).filter(Vehicle.client_id == customer_id).all()
-        service_history = session.query(ServiceHistory).join(Vehicle).filter(Vehicle.client_id == customer_id).all()
-        appointments = session.query(Appointment).join(Vehicle).filter(Vehicle.client_id == customer_id).all()
-
-        return {
-            "customer": {"name": customer.name, "email": customer.email, "phone": customer.phone},
-            "vehicles": [{"vin": v.vin, "model": v.model, "year": v.year} for v in vehicles],
-            "serviceHistory": [{"date": s.date, "service_type": s.service_type, "notes": s.notes} for s in service_history],
-            "appointments": [{"date": a.date, "time": a.time, "service_type": a.service_type, "status": a.status} for a in appointments],
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail="Failed to fetch customer details")
