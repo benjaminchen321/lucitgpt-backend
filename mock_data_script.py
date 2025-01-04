@@ -8,7 +8,13 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.sql import text
 from datetime import datetime, timedelta
 import random
-from init_db import Client, Vehicle, ServiceHistory, Appointment, Employee  # Import SQLAlchemy models
+from backend.models.base import (
+    Client,
+    Vehicle,
+    ServiceHistory,
+    Appointment,
+    Employee,
+)  # Import SQLAlchemy models
 
 print("Loading .env file...")
 if not os.path.exists(".env"):
@@ -41,7 +47,11 @@ fake = Faker()
 # Wipe tables clean
 print("Wiping existing data...")
 try:
-    session.execute(text("TRUNCATE TABLE appointments, service_history, vehicles, employees, clients RESTART IDENTITY CASCADE;"))
+    session.execute(
+        text(
+            "TRUNCATE TABLE appointments, service_history, vehicles, employees, clients RESTART IDENTITY CASCADE;"
+        )
+    )
     session.commit()
     print("Tables wiped clean.")
 except Exception as e:
@@ -62,11 +72,7 @@ clients = []
 unique_emails = set()  # Track unique emails
 for _ in range(NUM_CLIENTS):
     email = fake.unique.email()
-    client = Client(
-        name=fake.name(),
-        email=email,
-        phone=fake.phone_number()
-    )
+    client = Client(name=fake.name(), email=email, phone=fake.phone_number())
     clients.append(client)
 
 # Insert clients into the database
@@ -90,7 +96,9 @@ for _ in range(NUM_EMPLOYEES):
         name=fake.name(),
         email=email,
         phone=fake.phone_number(),
-        profile_pic_url=fake.image_url(width=100, height=100)  # Using placeholder images
+        profile_pic_url=fake.image_url(
+            width=100, height=100
+        ),  # Using placeholder images
     )
     employees.append(employee)
 
@@ -114,13 +122,13 @@ print("Generating vehicles...")
 vehicles = []
 for _ in range(NUM_VEHICLES):
     vehicle = Vehicle(
-        vin=fake.unique.bothify(text='??????#####'),
+        vin=fake.unique.bothify(text="??????#####"),
         client_id=random.choice(inserted_clients).id,
         model=random.choice(["Lucid Air GT", "Lucid Pure", "Lucid Touring"]),
         year=random.randint(2018, 2023),
         mileage=random.randint(0, 150000),  # Increased mileage range
         warranty_exp=fake.date_between(start_date="+1y", end_date="+5y"),
-        service_plan=random.choice(["Premium", "Standard", "Elite"])
+        service_plan=random.choice(["Premium", "Standard", "Elite"]),
     )
     vehicles.append(vehicle)
 
@@ -147,9 +155,18 @@ for _ in range(NUM_SERVICE_RECORDS):
     record = ServiceHistory(
         vin=vehicle.vin,
         date=fake.date_between(start_date="-5y", end_date="today"),
-        service_type=random.choice(["Oil Change", "Tire Rotation", "Software Update", "Battery Replacement", "Brake Inspection", "Transmission Repair"]),
+        service_type=random.choice(
+            [
+                "Oil Change",
+                "Tire Rotation",
+                "Software Update",
+                "Battery Replacement",
+                "Brake Inspection",
+                "Transmission Repair",
+            ]
+        ),
         notes=fake.sentence(nb_words=10),
-        employee_id=employee.id
+        employee_id=employee.id,
     )
     service_records.append(record)
 
@@ -174,9 +191,18 @@ for _ in range(NUM_APPOINTMENTS):
         vin=vehicle.vin,
         date=fake.date_between(start_date="today", end_date="+2y"),
         time=fake.time(),
-        service_type=random.choice(["Battery Check", "Brake Inspection", "Tire Replacement", "Engine Diagnostics", "Software Update", "Oil Change"]),
+        service_type=random.choice(
+            [
+                "Battery Check",
+                "Brake Inspection",
+                "Tire Replacement",
+                "Engine Diagnostics",
+                "Software Update",
+                "Oil Change",
+            ]
+        ),
         status=random.choice(["Scheduled", "Completed", "Cancelled", "No-show"]),
-        employee_id=employee.id
+        employee_id=employee.id,
     )
     appointments.append(appointment)
 
