@@ -1,3 +1,6 @@
+python-jose[cryptography]
+passlib[bcrypt]
+pydantic[email]
 fastapi
 uvicorn
 sqlalchemy
@@ -12,3 +15,4 @@ httpx
 requests
 elasticsearch
 openai
+alembic

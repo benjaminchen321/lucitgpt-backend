@@ -3,18 +3,19 @@ import os
 from sqlalchemy import (
     create_engine,
     Column,
+    Index,
     Integer,
     String,
     Date,
     ForeignKey,
-    orm,
 )
 from sqlalchemy.orm import relationship, sessionmaker
 from dotenv import load_dotenv
+from sqlalchemy.ext.declarative import declarative_base
 
 load_dotenv()
 
-Base = orm.declarative_base()
+Base = declarative_base()
 
 # Define necessary tables for the Enhanced Client Assistance Feature
 
@@ -25,6 +26,7 @@ class Client(Base):
     name = Column(String, nullable=False)
     email = Column(String, nullable=False, unique=True)
     phone = Column(String, nullable=False)
+    password = Column(String, nullable=False)  # Add password field
 
     vehicles = relationship("Vehicle", back_populates="owner")
 
@@ -83,10 +85,15 @@ class Appointment(Base):
     employee = relationship("Employee", back_populates="appointments")
 
 
+Index('ix_service_history_vin', ServiceHistory.vin)
+
+
 # Database connection setup
 DATABASE_URL = os.environ.get("DATABASE_URL")
+print("DATABASE_URL:", DATABASE_URL)
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(bind=engine)
+
 
 # Create tables
 if __name__ == "__main__":

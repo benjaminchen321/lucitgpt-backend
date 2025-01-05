@@ -6,15 +6,15 @@ from faker import Faker
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.sql import text
-from datetime import datetime, timedelta
 import random
-from backend.models.base import (
+from models.init_db import (
     Client,
     Vehicle,
     ServiceHistory,
     Appointment,
     Employee,
 )  # Import SQLAlchemy models
+from utils.auth import get_password_hash
 
 print("Loading .env file...")
 if not os.path.exists(".env"):
@@ -49,7 +49,8 @@ print("Wiping existing data...")
 try:
     session.execute(
         text(
-            "TRUNCATE TABLE appointments, service_history, vehicles, employees, clients RESTART IDENTITY CASCADE;"
+            "TRUNCATE TABLE appointments, service_history, vehicles, "
+            "employees, clients RESTART IDENTITY CASCADE;"
         )
     )
     session.commit()
@@ -60,10 +61,10 @@ except Exception as e:
     raise
 
 # Generate mock data
-NUM_CLIENTS = 1000
-NUM_VEHICLES = 2000
-NUM_EMPLOYEES = 200  # Increased number of employees
-NUM_SERVICE_RECORDS = 5000
+NUM_CLIENTS = 5000  # Increased number of clients
+NUM_VEHICLES = 5000
+NUM_EMPLOYEES = 1000  # Increased number of employees
+NUM_SERVICE_RECORDS = 2000
 NUM_APPOINTMENTS = 3000  # Increased number of appointments
 
 # Insert Clients
@@ -71,8 +72,14 @@ print("Generating clients...")
 clients = []
 unique_emails = set()  # Track unique emails
 for _ in range(NUM_CLIENTS):
+    print(f"client{_}")
     email = fake.unique.email()
-    client = Client(name=fake.name(), email=email, phone=fake.phone_number())
+    client = Client(
+        name=fake.name(),
+        email=email,
+        phone=fake.phone_number(),
+        password=get_password_hash("password123"),  # Default password
+    )
     clients.append(client)
 
 # Insert clients into the database
@@ -91,6 +98,7 @@ print("Generating employees...")
 employees = []
 unique_emp_emails = set()
 for _ in range(NUM_EMPLOYEES):
+    print(f"employee{_}")
     email = fake.unique.email()
     employee = Employee(
         name=fake.name(),
@@ -121,6 +129,7 @@ inserted_employees = session.query(Employee).all()
 print("Generating vehicles...")
 vehicles = []
 for _ in range(NUM_VEHICLES):
+    print(f"vehicle{_}")
     vehicle = Vehicle(
         vin=fake.unique.bothify(text="??????#####"),
         client_id=random.choice(inserted_clients).id,
@@ -150,6 +159,7 @@ inserted_vehicles = session.query(Vehicle).all()
 print("Generating service records...")
 service_records = []
 for _ in range(NUM_SERVICE_RECORDS):
+    print(f"record{_}")
     vehicle = random.choice(inserted_vehicles)
     employee = random.choice(inserted_employees)
     record = ServiceHistory(
@@ -185,6 +195,7 @@ except Exception as e:
 print("Generating appointments...")
 appointments = []
 for _ in range(NUM_APPOINTMENTS):
+    print(f"appointment{_}")
     vehicle = random.choice(inserted_vehicles)
     employee = random.choice(inserted_employees)
     appointment = Appointment(
@@ -201,7 +212,9 @@ for _ in range(NUM_APPOINTMENTS):
                 "Oil Change",
             ]
         ),
-        status=random.choice(["Scheduled", "Completed", "Cancelled", "No-show"]),
+        status=random.choice(
+            ["Scheduled", "Completed", "Cancelled", "No-show"]
+        ),
         employee_id=employee.id,
     )
     appointments.append(appointment)

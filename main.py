@@ -8,6 +8,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from routes.appointments import router as appointments_router
 from routes.customers import router as customers_router
+from routes.token import router as token_router  # Import the token router
 
 load_dotenv()
 
@@ -30,10 +31,11 @@ app.add_middleware(
 # Register Routes
 app.include_router(customers_router, prefix="/customers", tags=["Customers"])
 app.include_router(
-    appointments_router, 
-    prefix="/appointments", 
+    appointments_router,
+    prefix="/appointments",
     tags=["Appointments"]
 )
+app.include_router(token_router, prefix="", tags=["Authentication"])
 
 
 @app.get("/health")

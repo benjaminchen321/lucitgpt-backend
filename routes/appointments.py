@@ -1,15 +1,21 @@
 import logging
 from fastapi import APIRouter, Depends, HTTPException
+from typing import List
 from sqlalchemy.orm import Session
-from models.init_db import Appointment
+from models.init_db import Appointment, Client
+from models.schemas import AppointmentBase
+from utils.auth import get_current_user
 from utils.dependencies import get_db
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
-@router.get("/")
-def get_appointments(db: Session = Depends(get_db)):
+@router.get("/", response_model=List[AppointmentBase])
+def get_appointments(
+    db: Session = Depends(get_db),
+    current_user: Client = Depends(get_current_user)
+):
     """
     Retrieve all appointments from the database.
 
