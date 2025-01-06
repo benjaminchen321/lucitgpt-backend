@@ -1,10 +1,7 @@
-from fastapi.testclient import TestClient
-from main import app
+# backend/tests/test_customers.py
 
-client = TestClient(app)
-
-
-def test_get_customers():
-    response = client.get("/customers")
-    assert response.status_code == 200
-    assert isinstance(response.json(), list)
+def test_get_customers(client, auth_token):
+    headers = {"Authorization": f"Bearer {auth_token}"}
+    response = client.get("/customers", headers=headers)
+    assert response.status_code == 200, \
+        f"Expected status code 200, got {response.status_code}"

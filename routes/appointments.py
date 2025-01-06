@@ -37,8 +37,13 @@ def get_appointments(
                 status_code=404, detail="No appointments found."
             )
         return appointments
+    except HTTPException as e:
+        logger.error("HTTP error fetching appointments: %s", e, exc_info=True)
+        raise
     except Exception as e:
-        logger.error("Error fetching appointments: %s", e, exc_info=True)
+        logger.error(
+            "Unexpected error fetching appointments: %s", e, exc_info=True
+        )
         raise HTTPException(
             status_code=500, detail="Failed to fetch appointments."
         ) from e
