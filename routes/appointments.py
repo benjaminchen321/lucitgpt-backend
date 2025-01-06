@@ -1,5 +1,7 @@
+import datetime
 import logging
 from fastapi import APIRouter, HTTPException, status, Depends
+from sqlalchemy import asc
 from sqlalchemy.orm import Session
 from models.init_db import Appointment
 from models.schemas import AppointmentBase
@@ -21,7 +23,13 @@ def get_appointments(db: Session = Depends(get_db)):
         list: A list of appointment details.
     """
     try:
-        appointments = db.query(Appointment).all()
+        now = datetime.datetime.now()
+        appointments = (
+            db.query(Appointment)
+            .filter(Appointment.date >= now)
+            .order_by(asc(Appointment.date))
+            .all()
+        )
         if not appointments:
             logger.info("No appointments found.")
             raise HTTPException(
@@ -29,7 +37,7 @@ def get_appointments(db: Session = Depends(get_db)):
                 detail="No appointments found."
             )
         return [
-            AppointmentBase.from_orm(appointment)
+            AppointmentBase.model_validate(appointment)
             for appointment in appointments
         ]
     except Exception as e:
