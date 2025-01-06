@@ -23,6 +23,9 @@ class VehicleBase(BaseModel):
     warranty_exp: date
     service_plan: str
 
+    class Config:
+        from_attributes = True
+
 
 class AppointmentBase(BaseModel):
     vin: str
@@ -31,6 +34,9 @@ class AppointmentBase(BaseModel):
     service_type: str
     status: str
     employee_id: int
+
+    class Config:
+        from_attributes = True
 
 
 class CustomerResponse(CustomerBase):
@@ -52,8 +58,20 @@ class CustomerDetailResponse(BaseModel):
 class UserResponse(BaseModel):
     id: int
     name: str
-    email: EmailStr
+    email: str
     phone: str
+    role: str
+
+    class Config:
+        from_attributes = True
+
+
+class EmployeeResponse(BaseModel):
+    id: int
+    name: str
+    email: str
+    phone: str
+    profile_pic_url: str
 
     class Config:
         from_attributes = True

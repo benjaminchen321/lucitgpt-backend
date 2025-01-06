@@ -46,8 +46,7 @@ def test_get_appointments(client, auth_token, db):
 
     headers = {"Authorization": f"Bearer {auth_token}"}
     response = client.get("/appointments", headers=headers)
-    assert response.status_code == 200, \
-        f"Expected 200, got {response.status_code}"
+    assert response.status_code == 200, f"Expected 200, got {response.status_code}"
     data = response.json()
     assert isinstance(data, list), "Response should be a list."
     assert len(data) >= 1, "There should be at least one appointment."

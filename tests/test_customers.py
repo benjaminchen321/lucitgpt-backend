@@ -15,11 +15,7 @@ def test_get_customers(client, auth_token, db):
     assert len(data) >= 1, "There should be at least one customer."
 
     # Check if the test user is in the response
-    test_user = (
-        db.query(Client)
-        .filter(Client.email == "testuser@example.com")
-        .first()
-    )
+    test_user = db.query(Client).filter(Client.email == "testuser@example.com").first()
     assert any(
         customer["email"] == test_user.email for customer in data
     ), "Test user not found in customers."

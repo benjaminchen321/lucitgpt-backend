@@ -1,4 +1,5 @@
-# mock_data_script.py
+# backend/mock_data_script.py
+
 import os
 from dotenv import load_dotenv
 
@@ -60,44 +61,30 @@ except Exception as e:
     print("Error wiping tables:", e)
     raise
 
-# Generate mock data
-NUM_CLIENTS = 5000  # Increased number of clients
-NUM_VEHICLES = 5000
-NUM_EMPLOYEES = 1000  # Increased number of employees
-NUM_SERVICE_RECORDS = 2000
-NUM_APPOINTMENTS = 3000  # Increased number of appointments
-
-# Insert Clients
-print("Generating clients...")
-clients = []
-unique_emails = set()  # Track unique emails
-for _ in range(NUM_CLIENTS):
-    print(f"client{_}")
-    email = fake.unique.email()
-    client = Client(
-        name=fake.name(),
-        email=email,
-        phone=fake.phone_number(),
-        password=get_password_hash("password123"),  # Default password
-    )
-    clients.append(client)
-
-# Insert clients into the database
-print("Inserting clients...")
+# Insert Super User
+print("Creating super user...")
+super_user = Employee(
+    name="Super User",
+    email="superuser@example.com",
+    phone="000.000.0000",
+    profile_pic_url="https://dummyimage.com/100x100",
+    password=get_password_hash("SuperPassword123"),  # Secure password
+    is_superuser=True,
+)
 try:
-    session.bulk_save_objects(clients)
+    session.add(super_user)
     session.commit()
-    print("Clients inserted successfully!")
+    print("Super user created successfully!")
 except Exception as e:
     session.rollback()
-    print("Error inserting clients:", e)
+    print("Error creating super user:", e)
     raise
 
 # Insert Employees
 print("Generating employees...")
 employees = []
 unique_emp_emails = set()
-for _ in range(NUM_EMPLOYEES):
+for _ in range(999):  # Total employees including super user is 1000
     print(f"employee{_}")
     email = fake.unique.email()
     employee = Employee(
@@ -107,6 +94,8 @@ for _ in range(NUM_EMPLOYEES):
         profile_pic_url=fake.image_url(
             width=100, height=100
         ),  # Using placeholder images
+        password=get_password_hash("password123"),  # Default password for employees
+        is_superuser=False,
     )
     employees.append(employee)
 
@@ -121,6 +110,32 @@ except Exception as e:
     print("Error inserting employees:", e)
     raise
 
+# Insert Clients
+print("Generating clients...")
+clients = []
+unique_emails = set()  # Track unique emails
+for _ in range(5000):  # Increased number of clients
+    print(f"client{_}")
+    email = fake.unique.email()
+    client = Client(
+        name=fake.name(),
+        email=email,
+        phone=fake.phone_number(),
+        password=get_password_hash("password123"),  # Default password for clients
+    )
+    clients.append(client)
+
+# Insert clients into the database
+print("Inserting clients...")
+try:
+    session.bulk_save_objects(clients)
+    session.commit()
+    print("Clients inserted successfully!")
+except Exception as e:
+    session.rollback()
+    print("Error inserting clients:", e)
+    raise
+
 # Fetch client and employee IDs dynamically
 inserted_clients = session.query(Client).all()
 inserted_employees = session.query(Employee).all()
@@ -128,7 +143,7 @@ inserted_employees = session.query(Employee).all()
 # Insert Vehicles
 print("Generating vehicles...")
 vehicles = []
-for _ in range(NUM_VEHICLES):
+for _ in range(5000):  # Increased number of vehicles
     print(f"vehicle{_}")
     vehicle = Vehicle(
         vin=fake.unique.bothify(text="??????#####"),
@@ -158,10 +173,11 @@ inserted_vehicles = session.query(Vehicle).all()
 # Insert Service Records
 print("Generating service records...")
 service_records = []
-for _ in range(NUM_SERVICE_RECORDS):
+for _ in range(2000):  # Increased number of service records
     print(f"record{_}")
     vehicle = random.choice(inserted_vehicles)
-    employee = random.choice(inserted_employees)
+    # Super user can be assigned to some service records
+    employee = random.choice(inserted_employees + [super_user])
     record = ServiceHistory(
         vin=vehicle.vin,
         date=fake.date_between(start_date="-5y", end_date="today"),
@@ -194,10 +210,11 @@ except Exception as e:
 # Insert Appointments
 print("Generating appointments...")
 appointments = []
-for _ in range(NUM_APPOINTMENTS):
+for _ in range(3000):  # Increased number of appointments
     print(f"appointment{_}")
     vehicle = random.choice(inserted_vehicles)
-    employee = random.choice(inserted_employees)
+    # Super user can be assigned to some appointments
+    employee = random.choice(inserted_employees + [super_user])
     appointment = Appointment(
         vin=vehicle.vin,
         date=fake.date_between(start_date="today", end_date="+2y"),
@@ -212,9 +229,7 @@ for _ in range(NUM_APPOINTMENTS):
                 "Oil Change",
             ]
         ),
-        status=random.choice(
-            ["Scheduled", "Completed", "Cancelled", "No-show"]
-        ),
+        status=random.choice(["Scheduled", "Completed", "Cancelled", "No-show"]),
         employee_id=employee.id,
     )
     appointments.append(appointment)

@@ -7,6 +7,7 @@ from routes.customers import router as customers_router
 from routes.token import router as token_router
 from routes.assist import router as assist_router
 from routes.users import router as users_router
+from routes.employees import router as employees_router
 
 # Configure logger
 logging.basicConfig(level=logging.INFO)
@@ -26,12 +27,11 @@ app.add_middleware(
 
 # Register Routes
 app.include_router(customers_router, prefix="/customers", tags=["Customers"])
-app.include_router(
-    appointments_router, prefix="/appointments", tags=["Appointments"]
-)
+app.include_router(appointments_router, prefix="/appointments", tags=["Appointments"])
 app.include_router(token_router, prefix="", tags=["Authentication"])
 app.include_router(assist_router, prefix="", tags=["Assistance"])
 app.include_router(users_router, prefix="", tags=["Users"])
+app.include_router(employees_router, prefix="", tags=["Employees"])
 
 
 @app.get("/health")

@@ -13,8 +13,7 @@ logger = logging.getLogger(__name__)
 
 @router.get("/", response_model=List[AppointmentBase])
 def get_appointments(
-    db: Session = Depends(get_db),
-    current_user: Client = Depends(get_current_user)
+    db: Session = Depends(get_db), current_user: Client = Depends(get_current_user)
 ):
     """
     Retrieve all appointments from the database.
@@ -34,31 +33,26 @@ def get_appointments(
         # If appointments are user-specific, filter by user
         appointments = (
             db.query(Appointment)
-            .filter(Appointment.employee_id == current_user.id)
+            .filter(Appointment.employee_id == current_user["id"])
             .all()
         )
 
         if not appointments:
-            logger.info(
-                f"No appointments found for user ID {current_user.id}."
-            )
+            logger.info(f"No appointments found for user ID {current_user["id"]}.")
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="No appointments found."
+                status_code=status.HTTP_404_NOT_FOUND, detail="No appointments found."
             )
 
         logger.info(
             f"Retrieved {len(appointments)} appointments for user ID "
-            f"{current_user.id}."
+            f"{current_user["id"]}."
         )
         return appointments
     except HTTPException as e:
         logger.error("HTTP error fetching appointments: %s", e, exc_info=True)
         raise
     except Exception as e:
-        logger.error(
-            "Unexpected error fetching appointments: %s", e, exc_info=True
-        )
+        logger.error("Unexpected error fetching appointments: %s", e, exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to fetch appointments.",

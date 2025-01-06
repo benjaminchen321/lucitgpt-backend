@@ -1,4 +1,5 @@
 # backend/utils/auth.py
+
 import os
 from datetime import datetime, timedelta, timezone
 from typing import Optional
@@ -7,7 +8,7 @@ from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
-from models.init_db import Client
+from models.init_db import Client, Employee
 from utils.dependencies import get_db
 from dotenv import load_dotenv
 
@@ -38,11 +39,11 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
         expire = datetime.now(timezone.utc) + expires_delta
 
     else:
-        expire = datetime.utcnow() + timedelta(
-            minutes=ACCESS_TOKEN_EXPIRE_MINUTES
-        )
+        expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     # Ensure 'sub' is a string
-    to_encode.update({"exp": expire, "sub": str(data.get("sub"))})
+    to_encode.update(
+        {"exp": expire, "sub": str(data.get("sub")), "role": data.get("role")}
+    )
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
@@ -57,24 +58,45 @@ def decode_access_token(token: str):
 
 def get_current_user(
     token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)
-):
+) -> dict:
+    """
+    Decode JWT token and retrieve user ID and role.
+
+    Args:
+        token (str): JWT token.
+        db (Session): Database session.
+
+    Returns:
+        dict: Contains user ID and role.
+
+    Raises:
+        HTTPException: If token is invalid or user not found.
+    """
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
+        detail="Could not validate credentials.",
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id_str: str = payload.get("sub")
-        if user_id_str is None:
-            raise credentials_exception
-        try:
-            user_id = int(user_id_str)
-        except ValueError:
+        user_id: int = payload.get("sub")
+        role: str = payload.get("role")
+        if user_id is None or role is None:
             raise credentials_exception
     except JWTError:
         raise credentials_exception
-    user = db.query(Client).filter(Client.id == user_id).first()
-    if user is None:
+
+    # Verify that the user exists in the respective table
+    if role == "customer":
+        user = db.query(Client).filter(Client.id == user_id).first()
+        if not user:
+            raise credentials_exception
+    elif role == "employee":
+        user = db.query(Employee).filter(Employee.id == user_id).first()
+        if not user:
+            raise credentials_exception
+    else:
+        # Invalid role
         raise credentials_exception
-    return user
+
+    return {"id": user_id, "role": role}

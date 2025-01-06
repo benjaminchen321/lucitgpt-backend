@@ -24,14 +24,8 @@ if not SECRET_KEY:
 # Configure test database (use a separate test database)
 TEST_DATABASE_URL = "sqlite:///./test.db"  # Using SQLite for testing
 
-engine = create_engine(
-    TEST_DATABASE_URL, connect_args={"check_same_thread": False}
-)
-TestingSessionLocal = sessionmaker(
-    autocommit=False,
-    autoflush=False,
-    bind=engine
-)
+engine = create_engine(TEST_DATABASE_URL, connect_args={"check_same_thread": False})
+TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 # Create the database tables
 Base.metadata.create_all(bind=engine)
@@ -67,9 +61,7 @@ def client(db):
 @pytest.fixture(scope="session")
 def test_user(db):
     """Create a test user in the database."""
-    user = (
-        db.query(Client).filter(Client.email == "testuser@example.com").first()
-    )
+    user = db.query(Client).filter(Client.email == "testuser@example.com").first()
     if not user:
         user = Client(
             name="Test User",
