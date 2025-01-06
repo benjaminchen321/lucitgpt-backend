@@ -1,4 +1,4 @@
-# alembic/env.py
+# backend/alembic/env.py
 import os
 import sys
 from logging.config import fileConfig
@@ -15,7 +15,7 @@ from dotenv import load_dotenv
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 # Load environment variables from .env.prod
-load_dotenv()  # Adjust the path if necessary
+load_dotenv(dotenv_path='../.env.prod')  # Adjust the path if necessary
 
 # Now import your models
 from models.init_db import Base
@@ -30,9 +30,6 @@ fileConfig(config.config_file_name)
 
 # Add your model's MetaData object here
 # for 'autogenerate' support
-# from myapp import mymodel
-# target_metadata = mymodel.Base.metadata
-
 target_metadata = Base.metadata
 
 
@@ -76,12 +73,6 @@ def run_migrations_online():
 
         with context.begin_transaction():
             context.run_migrations()
-
-
-database_url = get_url()
-if not database_url:
-    raise ValueError("DATABASE_URL environment variable is not set.")
-print(f"Database URL: {database_url}")  # Debug statement
 
 
 if context.is_offline_mode():

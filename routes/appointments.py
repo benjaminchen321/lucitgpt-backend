@@ -36,18 +36,7 @@ def get_appointments(
             raise HTTPException(
                 status_code=404, detail="No appointments found."
             )
-        return [
-            {
-                "id": appt.id,
-                "vin": appt.vin,
-                "date": appt.date,
-                "time": appt.time,
-                "service_type": appt.service_type,
-                "status": appt.status,
-                "employee_id": appt.employee_id,
-            }
-            for appt in appointments
-        ]
+        return appointments
     except Exception as e:
         logger.error("Error fetching appointments: %s", e, exc_info=True)
         raise HTTPException(

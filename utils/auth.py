@@ -1,4 +1,5 @@
-# utils/auth.py
+# backend/utils/auth.py
+import os
 from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
@@ -6,11 +7,10 @@ from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
-from models.init_db import Client  # Assuming Clients can be users
+from models.init_db import Client
 from utils.dependencies import get_db
 
-# Secret key to encode JWT
-SECRET_KEY = "your_secret_key"  # Replace with a secure key
+SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 

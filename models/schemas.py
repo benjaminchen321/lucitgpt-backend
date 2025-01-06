@@ -1,4 +1,4 @@
-# models/schemas.py
+# backend/models/schemas.py
 from pydantic import BaseModel, EmailStr
 from typing import List
 from datetime import date
@@ -35,7 +35,7 @@ class AppointmentBase(BaseModel):
 
 class CustomerResponse(CustomerBase):
     id: int
-
+    
     class Config:
         orm_mode = True
 

@@ -5,3 +5,10 @@
 .env.production.local
 .env.prod
 .env
+/lucitgpt-backend.git
+/lucitgpt-backend.git.bfg-report
+
+# SSL Certificates
+localhost-key.pem
+localhost.pem
+/venv

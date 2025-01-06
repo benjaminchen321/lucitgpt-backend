@@ -1,8 +1,9 @@
-# routes/token.py
+# backend/routes/token.py
 from datetime import timedelta
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
+
 from utils.dependencies import get_db
 from utils.auth import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
@@ -28,7 +29,7 @@ def login_for_access_token(
         )
     if not verify_password(
         form_data.password, user.password
-    ):  # Ensure `password` field exists
+    ):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",

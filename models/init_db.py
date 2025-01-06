@@ -1,5 +1,6 @@
 # init_db.py
 import os
+import logging
 from sqlalchemy import (
     create_engine,
     Column,
@@ -12,6 +13,10 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship, sessionmaker
 from dotenv import load_dotenv
 from sqlalchemy.ext.declarative import declarative_base
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 
@@ -90,12 +95,24 @@ Index('ix_service_history_vin', ServiceHistory.vin)
 
 # Database connection setup
 DATABASE_URL = os.environ.get("DATABASE_URL")
-print("DATABASE_URL:", DATABASE_URL)
+
+if not DATABASE_URL:
+    logger.error("DATABASE_URL environment variable is not set.")
+    raise ValueError("DATABASE_URL environment variable is not set.")
+
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(bind=engine)
 
 
-# Create tables
+# Create tables with exception handling
+def create_tables():
+    try:
+        Base.metadata.create_all(engine)
+        logger.info("Database tables created successfully.")
+    except Exception as e:
+        logger.error(f"Error creating database tables: {e}")
+        raise
+
+
 if __name__ == "__main__":
-    Base.metadata.create_all(engine)
-    print("Database tables created successfully.")
+    create_tables()

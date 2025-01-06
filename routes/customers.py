@@ -33,10 +33,7 @@ def get_customers(
     customers = db.query(Client).all()
     if not customers:
         raise HTTPException(status_code=404, detail="No customers found.")
-    return [
-        {"id": c.id, "name": c.name, "email": c.email, "phone": c.phone}
-        for c in customers
-    ]
+    return customers
 
 
 @router.get("/{customer_id}", response_model=CustomerDetailResponse)
@@ -68,33 +65,7 @@ def get_customer_details(
     ).all()
 
     return {
-        "customer": {
-            "id": customer.id,
-            "name": customer.name,
-            "email": customer.email,
-            "phone": customer.phone,
-        },
-        "vehicles": [
-            {
-                "vin": vehicle.vin,
-                "model": vehicle.model,
-                "year": vehicle.year,
-                "mileage": vehicle.mileage,
-                "warranty_exp": vehicle.warranty_exp,
-                "service_plan": vehicle.service_plan,
-            }
-            for vehicle in vehicles
-        ],
-        "appointments": [
-            {
-                "id": appt.id,
-                "vin": appt.vin,
-                "date": appt.date,
-                "time": appt.time,
-                "service_type": appt.service_type,
-                "status": appt.status,
-                "employee_id": appt.employee_id,
-            }
-            for appt in appointments
-        ],
+        "customer": customer,
+        "vehicles": vehicles,
+        "appointments": appointments
     }
