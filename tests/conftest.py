@@ -52,6 +52,7 @@ def db():
 @pytest.fixture(scope="session")
 def client(db):
     """Create a TestClient that uses the test database."""
+
     def override_get_db():
         try:
             yield db
@@ -66,9 +67,9 @@ def client(db):
 @pytest.fixture(scope="session")
 def test_user(db):
     """Create a test user in the database."""
-    user = db.query(Client).filter(
-        Client.email == "testuser@example.com"
-    ).first()
+    user = (
+        db.query(Client).filter(Client.email == "testuser@example.com").first()
+    )
     if not user:
         user = Client(
             name="Test User",
@@ -97,9 +98,9 @@ def auth_token(client, test_user):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
         assert isinstance(payload["sub"], str), "Token 'sub' must be a string."
-        assert int(payload["sub"]) == test_user.id, (
-            "Token 'sub' claim does not match user ID."
-        )
+        assert (
+            int(payload["sub"]) == test_user.id
+        ), "Token 'sub' claim does not match user ID."
     except (JWTError, ValueError) as e:
         pytest.fail(f"Token decoding failed: {e}")
 

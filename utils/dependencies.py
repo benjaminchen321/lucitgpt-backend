@@ -3,7 +3,7 @@ from models.init_db import SessionLocal
 from dotenv import load_dotenv
 
 # Load environment variables from .env.prod
-load_dotenv(dotenv_path='../.env.prod')  # Adjust the path if necessary
+load_dotenv(dotenv_path="../.env.prod")  # Adjust the path if necessary
 
 
 def get_db():

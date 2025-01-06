@@ -3,6 +3,7 @@ from datetime import timedelta
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
+from pydantic import BaseModel
 
 from utils.dependencies import get_db
 from utils.auth import (
@@ -15,7 +16,12 @@ from models.init_db import Client
 router = APIRouter()
 
 
-@router.post("/token")
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+
+@router.post("/token", response_model=Token)
 def login_for_access_token(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db)

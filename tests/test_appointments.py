@@ -10,15 +10,15 @@ def test_get_appointments(client, auth_token, db):
         name="John Doe",
         email="johndoe@example.com",
         phone="0987654321",
-        profile_pic_url=None
+        profile_pic_url=None,
     )
     db.add(test_employee)
     db.commit()
     db.refresh(test_employee)
 
-    test_client = db.query(Client).filter(
-        Client.email == "testuser@example.com"
-    ).first()
+    test_client = (
+        db.query(Client).filter(Client.email == "testuser@example.com").first()
+    )
     test_vehicle = Vehicle(
         vin="1HGCM82633A004352",
         client_id=test_client.id,
@@ -26,7 +26,7 @@ def test_get_appointments(client, auth_token, db):
         year=2020,
         mileage=15000,
         warranty_exp=date(2023, 12, 31),
-        service_plan="Premium"
+        service_plan="Premium",
     )
     db.add(test_vehicle)
     db.commit()
@@ -38,7 +38,7 @@ def test_get_appointments(client, auth_token, db):
         time="10:00 AM",
         service_type="Oil Change",
         status="Scheduled",
-        employee_id=test_employee.id
+        employee_id=test_employee.id,
     )
     db.add(test_appointment)
     db.commit()

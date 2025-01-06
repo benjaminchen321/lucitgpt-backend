@@ -12,10 +12,10 @@ from alembic import context
 from dotenv import load_dotenv
 
 # Add the parent directory to sys.path to locate 'models'
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 # Load environment variables from .env.prod
-load_dotenv(dotenv_path='../.env.prod')  # Adjust the path if necessary
+load_dotenv(dotenv_path="../.env.prod")  # Adjust the path if necessary
 
 # Now import your models
 from models.init_db import Base

@@ -35,9 +35,9 @@ class AppointmentBase(BaseModel):
 
 class CustomerResponse(CustomerBase):
     id: int
-    
+
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class CustomerDetailResponse(BaseModel):
@@ -46,4 +46,4 @@ class CustomerDetailResponse(BaseModel):
     appointments: List[AppointmentBase]
 
     class Config:
-        orm_mode = True
+        from_attributes = True

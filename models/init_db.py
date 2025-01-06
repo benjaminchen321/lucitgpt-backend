@@ -89,7 +89,7 @@ class Appointment(Base):
     employee = relationship("Employee", back_populates="appointments")
 
 
-Index('ix_service_history_vin', ServiceHistory.vin)
+Index("ix_service_history_vin", ServiceHistory.vin)
 
 
 # Database connection setup

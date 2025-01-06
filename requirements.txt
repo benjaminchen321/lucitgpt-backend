@@ -17,3 +17,4 @@ elasticsearch
 openai
 alembic
 python-multipart
+pytest-mock

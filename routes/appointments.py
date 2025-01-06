@@ -1,5 +1,5 @@
 import logging
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List
 from sqlalchemy.orm import Session
 from models.init_db import Appointment, Client
@@ -21,21 +21,36 @@ def get_appointments(
 
     Args:
         db (Session): Database session dependency.
+        current_user (Client): The authenticated user.
 
     Returns:
-        List[Dict]: A list of dictionaries containing appointment details.
+        List[AppointmentBase]: A list of appointment details.
 
     Raises:
         HTTPException: If no appointments are found or if there is an error
         fetching appointments.
     """
     try:
-        appointments = db.query(Appointment).all()
+        # If appointments are user-specific, filter by user
+        appointments = (
+            db.query(Appointment)
+            .filter(Appointment.employee_id == current_user.id)
+            .all()
+        )
+
         if not appointments:
-            logger.info("No appointments found.")
-            raise HTTPException(
-                status_code=404, detail="No appointments found."
+            logger.info(
+                f"No appointments found for user ID {current_user.id}."
             )
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No appointments found."
+            )
+
+        logger.info(
+            f"Retrieved {len(appointments)} appointments for user ID "
+            f"{current_user.id}."
+        )
         return appointments
     except HTTPException as e:
         logger.error("HTTP error fetching appointments: %s", e, exc_info=True)
@@ -45,5 +60,6 @@ def get_appointments(
             "Unexpected error fetching appointments: %s", e, exc_info=True
         )
         raise HTTPException(
-            status_code=500, detail="Failed to fetch appointments."
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to fetch appointments.",
         ) from e
