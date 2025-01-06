@@ -39,10 +39,10 @@ class AssistResponse(BaseModel):
 def assist(
     request: AssistRequest,
     db: Session = Depends(get_db),
-    current_user: Client = Depends(get_current_user)
+    current_user: Client = Depends(get_current_user),
 ):
     """
-    Endpoint to handle AI assistance queries.
+    Endpoint to handle AI assistance queries tailored for Lucid Motor.
 
     Args:
         request (AssistRequest): The user's query.
@@ -53,27 +53,33 @@ def assist(
         AssistResponse: The AI-generated answer.
 
     Raises:
-        HTTPException: If there's an error with the OpenAI API or
-        processing the request.
+        HTTPException: If there's an error with the OpenAI API or processing the request.
     """
     try:
         # Sanitize and validate the query
         if not request.query.strip():
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Query cannot be empty."
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Query cannot be empty."
             )
 
         # Log the incoming query
-        logger.info(
-            f"User ID {current_user.id} submitted query: {request.query}"
-        )
+        logger.info(f"User ID {current_user.id} submitted query: {request.query}")
+
+        # Create a contextual prompt
+        prompt = f"""
+                You are an AI assistant specialized in Lucid Motor, a leading manufacturer of luxury electric vehicles. 
+                Provide detailed, accurate, and helpful information related to Lucid Motor's vehicles, maintenance schedules, customer support, and sales processes.
+
+                User Query: {request.query}
+
+                AI Response:
+                """
 
         # Call OpenAI API
         response = openai.Completion.create(
-            engine="gpt-4o-mini",
-            prompt=request.query,
-            max_tokens=150,
+            engine="gpt-4",  # Update to "gpt-4o-mini" if it's a valid model
+            prompt=prompt,
+            max_tokens=300,
             n=1,
             stop=None,
             temperature=0.7,
@@ -91,11 +97,11 @@ def assist(
         logger.error(f"OpenAI API error: {e}")
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="Error communicating with AI service."
+            detail="Error communicating with AI service.",
         )
     except Exception as e:
         logger.error(f"Unexpected error in /assist: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An unexpected error occurred."
+            detail="An unexpected error occurred.",
         )

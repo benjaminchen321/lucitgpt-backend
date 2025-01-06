@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI()
 
 # CORS Configuration
-origins = ["*"]  # Use "*" for testing; restrict in production
+origins = ["https://localhost:3000", "https://lucidgpt.netlify.app"]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
