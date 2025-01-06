@@ -47,3 +47,13 @@ class CustomerDetailResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class UserResponse(BaseModel):
+    id: int
+    name: str
+    email: EmailStr
+    phone: str
+
+    class Config:
+        from_attributes = True

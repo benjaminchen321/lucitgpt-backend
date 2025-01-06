@@ -71,7 +71,7 @@ def assist(
 
         # Call OpenAI API
         response = openai.Completion.create(
-            engine="gpt-4o-mini",  # Ensure this model name is correct
+            engine="gpt-4o-mini",
             prompt=request.query,
             max_tokens=150,
             n=1,
