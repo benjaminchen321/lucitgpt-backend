@@ -9,15 +9,9 @@ import openai
 from utils.auth import get_current_user
 from utils.dependencies import get_db
 from models.init_db import Client
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
 
 # Initialize the router
 router = APIRouter()
-
-limiter = Limiter(key_func=get_remote_address, default_limits=["5/minute"])
-router.state.limiter = limiter
-router.add_exception_handler(429, _rate_limit_exceeded_handler)
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -42,7 +36,6 @@ class AssistResponse(BaseModel):
 
 
 @router.post("/assist", response_model=AssistResponse)
-@limiter.limit("10/minute")  # Adjust rate limit as needed
 def assist(
     request: AssistRequest,
     db: Session = Depends(get_db),
