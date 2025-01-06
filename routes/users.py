@@ -18,19 +18,27 @@ def read_current_user(
     """
     if user["role"] == "customer":
         customer = db.query(Client).filter(Client.id == user["id"]).first()
-        return {
-            "id": customer.id,
-            "name": customer.name,
-            "email": customer.email,
-            "role": user["role"],
-        }
-    elif user["role"] == "employee":
-        employee = db.query(Employee).filter(Employee.id == user["id"]).first()
-        return {
-            "id": employee.id,
-            "name": employee.name,
-            "email": employee.email,
-            "role": user["role"],
-        }
+        if customer:
+            return {
+                "id": customer.id,
+                "name": customer.name,
+                "email": customer.email,
+                "role": user["role"],
+            }
+        else:
+            employee = (
+                db.query(Employee)
+                .filter(Employee.id == user["id"])
+                .first()
+            )
+            if employee:
+                return {
+                    "id": employee.id,
+                    "name": employee.name,
+                    "email": employee.email,
+                    "role": user["role"],
+                }
+            else:
+                return {"error": "Employee not found"}
     else:
         return {}

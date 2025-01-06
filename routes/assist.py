@@ -1,14 +1,10 @@
-# backend/routes/assist.py
-
+# Updated assist.py
 import os
 import logging
-from fastapi import APIRouter, Depends, HTTPException, status
+import time
+from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
-from sqlalchemy.orm import Session
-import openai
-from utils.auth import get_current_user
-from utils.dependencies import get_db
-from models.init_db import Client
+from openai import OpenAI
 
 # Initialize the router
 router = APIRouter()
@@ -23,7 +19,7 @@ if not OPENAI_API_KEY:
     logger.error("OPENAI_API_KEY is not set in environment variables.")
     raise ValueError("OPENAI_API_KEY is not set in environment variables.")
 
-openai.api_key = OPENAI_API_KEY
+OPENAI_CLIENT = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
 
 # Define the request and response schemas
@@ -36,72 +32,56 @@ class AssistResponse(BaseModel):
 
 
 @router.post("/assist", response_model=AssistResponse)
-def assist(
-    request: AssistRequest,
-    db: Session = Depends(get_db),
-    current_user: Client = Depends(get_current_user),
-):
+def assist(request: AssistRequest):
     """
     Endpoint to handle AI assistance queries tailored for Lucid Motor.
 
     Args:
         request (AssistRequest): The user's query.
-        db (Session): Database session.
-        current_user (Client): The authenticated user.
 
     Returns:
         AssistResponse: The AI-generated answer.
 
     Raises:
-        HTTPException: If there's an error with the OpenAI API or processing the request.
+        HTTPException: If there's an error with the OpenAI API or
+        processing the request.
     """
     try:
-        # Sanitize and validate the query
+        start_time = time.time()
         if not request.query.strip():
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="Query cannot be empty."
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Query cannot be empty."
             )
 
-        # Log the incoming query
-        logger.info(f"User ID {current_user.id} submitted query: {request.query}")
-
-        # Create a contextual prompt
-        prompt = f"""
-                You are an AI assistant specialized in Lucid Motor, a leading manufacturer of luxury electric vehicles. 
-                Provide detailed, accurate, and helpful information related to Lucid Motor's vehicles, maintenance schedules, customer support, and sales processes.
+        role = f"""
+                You are an AI assistant specialized in Lucid Motor, a leading
+                manufacturer of luxury electric vehicles. Provide detailed,
+                accurate, and helpful information related to Lucid Motor's
+                vehicles, maintenance schedules, customer support, and
+                sales processes.
 
                 User Query: {request.query}
 
                 AI Response:
                 """
 
-        # Call OpenAI API
-        response = openai.Completion.create(
-            engine="gpt-4",  # Update to "gpt-4o-mini" if it's a valid model
-            prompt=prompt,
+        response = OPENAI_CLIENT.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": role or "You are helpful."},
+                {"role": "user", "content": request.query},
+            ],
             max_tokens=300,
             n=1,
-            stop=None,
             temperature=0.7,
         )
-        answer = response.choices[0].text.strip()
+        end_time = time.time()
+        logger.info(f"OpenAI API request completed in {end_time - start_time:.2f} seconds")
 
-        # Log the response
-        logger.info(f"AI response for user ID {current_user.id}: {answer}")
+        answer = response.choices[0].message.content.strip()
 
         return AssistResponse(answer=answer)
-    except HTTPException:
-        # Re-raise HTTPExceptions to be handled by FastAPI
-        raise
-    except openai.OpenAIError as e:
-        logger.error(f"OpenAI API error: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="Error communicating with AI service.",
-        )
     except Exception as e:
-        logger.error(f"Unexpected error in /assist: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An unexpected error occurred.",
-        )
+        logger.error("Error in /live-chat: %s", e)
+        raise HTTPException(500, f"Live chat failed: {e}") from e

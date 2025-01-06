@@ -12,13 +12,15 @@ router = APIRouter()
 
 @router.post("/token")
 def login_for_access_token(
-    form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db: Session = Depends(get_db)
 ):
     """
     Authenticate user and provide JWT token with role.
 
     Args:
-        form_data (OAuth2PasswordRequestForm): Form data containing username and password.
+        form_data (OAuth2PasswordRequestForm): Form data containing 
+        username and password.
         db (Session): Database session.
 
     Returns:
@@ -32,7 +34,11 @@ def login_for_access_token(
     role = "customer"
     if not user:
         # Attempt to find user in Employee table
-        user = db.query(Employee).filter(Employee.email == form_data.username).first()
+        user = (
+            db.query(Employee)
+            .filter(Employee.email == form_data.username)
+            .first()
+        )
         role = "employee"
         if not user:
             # User not found in either table
@@ -51,6 +57,6 @@ def login_for_access_token(
         )
 
     # Create JWT token with role
-    access_token = create_access_token(data={"sub": user.id, "role": role})
+    access_token = create_access_token(data={"id": user.id, "role": role})
 
     return {"access_token": access_token, "token_type": "bearer"}

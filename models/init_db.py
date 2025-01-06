@@ -32,7 +32,7 @@ class Client(Base):
     name = Column(String, nullable=False)
     email = Column(String, nullable=False, unique=True)
     phone = Column(String, nullable=False)
-    password = Column(String, nullable=False)  # Password field for authentication
+    password = Column(String, nullable=False)
 
     vehicles = relationship("Vehicle", back_populates="owner")
 
@@ -60,8 +60,8 @@ class Employee(Base):
     email = Column(String, unique=True, index=True)
     phone = Column(String, unique=True, index=True)
     profile_pic_url = Column(String)
-    password = Column(String, nullable=False)  # Password field for authentication
-    is_superuser = Column(Boolean, default=False)  # Flag to identify super users
+    password = Column(String, nullable=False)
+    is_superuser = Column(Boolean, default=False)
 
     service_records = relationship("ServiceHistory", back_populates="employee")
     appointments = relationship("Appointment", back_populates="employee")

@@ -39,7 +39,9 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
         expire = datetime.now(timezone.utc) + expires_delta
 
     else:
-        expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        expire = datetime.now(timezone.utc) + timedelta(
+            minutes=ACCESS_TOKEN_EXPIRE_MINUTES
+        )
     # Ensure 'sub' is a string
     to_encode.update(
         {"exp": expire, "sub": str(data.get("sub")), "role": data.get("role")}
@@ -79,7 +81,7 @@ def get_current_user(
     )
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id: int = payload.get("sub")
+        user_id: int = payload.get("id")
         role: str = payload.get("role")
         if user_id is None or role is None:
             raise credentials_exception
