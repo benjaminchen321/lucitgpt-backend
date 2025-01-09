@@ -10,9 +10,11 @@ from models.schemas import (
     AppointmentBase,
 )
 from utils.dependencies import get_db
+from cachetools import TTLCache
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+customer_cache = TTLCache(maxsize=500, ttl=600)  # Cache up to 500 customers for 10 minutes
 
 
 @router.get("/", response_model=List[CustomerResponse])
@@ -29,6 +31,11 @@ def get_customers(db: Session = Depends(get_db)):
     Raises:
         HTTPException: If no customers are found.
     """
+    
+    if "customers" in customer_cache:
+        logger.info("Serving cached customer list.")
+        return customer_cache["customers"]
+
     try:
         customers = db.query(Client).all()
         if not customers:
@@ -36,6 +43,7 @@ def get_customers(db: Session = Depends(get_db)):
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="No customers found."
             )
+        customer_cache["customers"] = customers
         return [
             CustomerResponse.model_validate(customer)
             for customer in customers
