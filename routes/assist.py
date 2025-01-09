@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
 from openai import OpenAI
 from cachetools import TTLCache
+from fuzzywuzzy import process, fuzz
 
 # Initialize the router
 router = APIRouter()
@@ -21,7 +22,7 @@ if not OPENAI_API_KEY:
     raise ValueError("OPENAI_API_KEY is not set in environment variables.")
 
 OPENAI_CLIENT = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
-RESPONSE_LENGTH = 300 # Maximum number of tokens in the response
+RESPONSE_LENGTH = 300  # Maximum number of tokens in the response
 
 # In-memory cache for OpenAI responses
 cache = TTLCache(maxsize=100, ttl=3600)  # Cache up to 100 queries for 1 hour
@@ -34,6 +35,17 @@ class AssistRequest(BaseModel):
 
 class AssistResponse(BaseModel):
     answer: str
+
+
+def find_fuzzy_match(query: str) -> str:
+    """
+    Find the closest cached query using fuzzy matching.
+    """
+    if not cache:
+        return None
+    closest_match = process.extractOne(query, cache.keys(), scorer=fuzz.ratio)
+    return (closest_match[0] if closest_match and closest_match[1] > 85
+            else None)
 
 
 @router.post("/assist", response_model=AssistResponse)
@@ -59,9 +71,12 @@ def assist(request: AssistRequest):
             detail="Query cannot be empty."
         )
 
-    if query in cache:
-        logger.info(f"Serving cached response for query: {query}")
-        return AssistResponse(answer=cache[query])
+    # Fuzzy match cache check
+    cached_query = find_fuzzy_match(query)
+
+    if cached_query:
+        logger.info(f"Serving fuzzy cached response for query: {query}")
+        return AssistResponse(answer=cache[cached_query])
 
     try:
         role = f"""
@@ -103,7 +118,10 @@ def assist(request: AssistRequest):
             temperature=0.4,
         )
         end_time = time.time()
-        logger.info(f"OpenAI API request completed in {end_time - start_time:.2f} seconds")
+        logger.info(
+            f"OpenAI API request completed in "
+            f"{end_time - start_time:.2f} seconds"
+        )
 
         answer = response.choices[0].message.content.strip()
         cache[query] = answer
