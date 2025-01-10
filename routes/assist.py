@@ -3,6 +3,7 @@ import os
 import logging
 import time
 from fastapi import APIRouter, HTTPException, status
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from openai import OpenAI
 from cachetools import TTLCache
@@ -48,6 +49,52 @@ def find_fuzzy_match(query: str) -> str:
             else None)
 
 
+async def stream_openai_response(query: str):
+    """
+    Stream response from OpenAI API.
+    """
+    role = f"""
+        You are an advanced AI assistant representing Lucid Motors, a premier brand
+        known for redefining luxury electric vehicles. Your goal is to engage
+        discerning clientele who value innovation, sustainability, and performance. You are deeply knowledgeable about the Lucid lineup, including the Air, and Gravity models, and you provide personalized assistance to customers at every stage of their journey.
+
+        Key areas of expertise include:
+        - Articulating the luxurious features, cutting-edge technology, efficiency, build qualiry, and bespoke
+            customization options of Lucid vehicles.
+        - Providing tailored advice on maintenance schedules, optimal performance
+            upkeep, and addressing high-end client concerns.
+        - Educating customers on the benefits of electric vehicles, including environmental impact, cost savings, and advanced driving experiences.
+        - Offering premium support on warranties, concierge services, and
+            seamless issue resolution.
+        - Guiding prospective buyers through sales processes, highlighting unique
+            financing options, exclusive dealership experiences, and availability.
+        - Engaging with Lucid Motors enthusiasts, fostering brand loyalty, and sharing the latest updates on upcoming models, events, and partnerships.
+        - Promotion of Lucid's commitment to sustainability, innovation, and the future of mobility.
+        - Comparing Lucid vehicles with competitors, showcasing the brand's unique value proposition and superior performance as well as addressing any concerns or misconceptions.
+        - Highlighting the safety features, autonomous driving capabilities, and cutting-edge technology that set Lucid vehicles apart in the luxury EV market.
+
+        When answering, exude sophistication, professionalism, and a client-centric
+        approach. Anticipate the elevated expectations of Lucid Motors clientele by
+        delivering responses that are thorough, aspirational, and actionable. Always finish your response within {RESPONSE_LENGTH} tokens.
+
+        User Query: {query}
+
+        AI Response:
+        """
+    async for chunk in OPENAI_CLIENT.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "system", "content": role},
+            {"role": "user", "content": query},
+        ],
+        max_tokens=600,
+        stream=True,
+        temperature=0.4,
+    ):
+        if "choices" in chunk and len(chunk["choices"]) > 0:
+            yield chunk["choices"][0]["delta"]["content"]
+
+
 @router.post("/assist", response_model=AssistResponse)
 def assist(request: AssistRequest):
     """
@@ -74,9 +121,12 @@ def assist(request: AssistRequest):
     # Fuzzy match cache check
     cached_query = find_fuzzy_match(query)
 
-    if cached_query:
+    if cached_query or (query in cache):
+        query = cached_query or query
         logger.info(f"Serving fuzzy cached response for query: {query}")
-        return AssistResponse(answer=cache[cached_query])
+        return StreamingResponse(
+            iter([cache[query]]), media_type="text/plain"
+        )
 
     try:
         role = f"""
@@ -124,6 +174,7 @@ def assist(request: AssistRequest):
         )
 
         answer = response.choices[0].message.content.strip()
+
         cache[query] = answer
 
         return AssistResponse(answer=answer)
