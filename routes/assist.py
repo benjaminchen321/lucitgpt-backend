@@ -1,4 +1,3 @@
-# Updated assist.py
 import os
 import logging
 import time
@@ -8,6 +7,10 @@ from pydantic import BaseModel
 from openai import OpenAI
 from cachetools import TTLCache
 from fuzzywuzzy import process, fuzz
+from dotenv import load_dotenv
+
+load_dotenv()
+print("DEBUG: OPENAI_API_KEY in FastAPI is:", os.environ.get("OPENAI_API_KEY"))
 
 # Initialize the router
 router = APIRouter()
@@ -17,6 +20,12 @@ logger = logging.getLogger(__name__)
 
 # Load OpenAI API key from environment variable
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+if not OPENAI_API_KEY:
+    logger.error("No OPENAI_API_KEY found!")
+else:
+    logger.warning(
+        f"Using OpenAI API key: {OPENAI_API_KEY[:6]}...{OPENAI_API_KEY[-4:]}"
+    )
 
 if not OPENAI_API_KEY:
     logger.error("OPENAI_API_KEY is not set in environment variables.")
@@ -29,7 +38,6 @@ RESPONSE_LENGTH = 300  # Maximum number of tokens in the response
 cache = TTLCache(maxsize=100, ttl=3600)  # Cache up to 100 queries for 1 hour
 
 
-# Define the request and response schemas
 class AssistRequest(BaseModel):
     query: str
 
@@ -45,13 +53,16 @@ def find_fuzzy_match(query: str) -> str:
     if not cache:
         return None
     closest_match = process.extractOne(query, cache.keys(), scorer=fuzz.ratio)
-    return (closest_match[0] if closest_match and closest_match[1] > 85
-            else None)
+    return (
+        closest_match[0] if closest_match and closest_match[1] > 85 else None
+    )
 
 
-async def stream_openai_response(query: str):
+def stream_openai_response(query: str):
     """
-    Stream response from OpenAI API.
+    **Changed to a synchronous generator** that yields text chunks.
+    Using `for chunk in ...` because the OpenAI client's `stream=True`
+    returns a sync generator.
     """
     role = f"""
         You are an advanced AI assistant representing Lucid Motors, a premier brand
@@ -60,14 +71,14 @@ async def stream_openai_response(query: str):
 
         Key areas of expertise include:
         - Articulating the luxurious features, cutting-edge technology, efficiency, build qualiry, and bespoke
-            customization options of Lucid vehicles.
+          customization options of Lucid vehicles.
         - Providing tailored advice on maintenance schedules, optimal performance
-            upkeep, and addressing high-end client concerns.
+          upkeep, and addressing high-end client concerns.
         - Educating customers on the benefits of electric vehicles, including environmental impact, cost savings, and advanced driving experiences.
         - Offering premium support on warranties, concierge services, and
-            seamless issue resolution.
+          seamless issue resolution.
         - Guiding prospective buyers through sales processes, highlighting unique
-            financing options, exclusive dealership experiences, and availability.
+          financing options, exclusive dealership experiences, and availability.
         - Engaging with Lucid Motors enthusiasts, fostering brand loyalty, and sharing the latest updates on upcoming models, events, and partnerships.
         - Promotion of Lucid's commitment to sustainability, innovation, and the future of mobility.
         - Comparing Lucid vehicles with competitors, showcasing the brand's unique value proposition and superior performance as well as addressing any concerns or misconceptions.
@@ -80,35 +91,30 @@ async def stream_openai_response(query: str):
         User Query: {query}
 
         AI Response:
-        """
-    async for chunk in OPENAI_CLIENT.chat.completions.create(
+    """
+
+    # The create() call here returns a normal generator when stream=True
+    # so we do a plain `for chunk in ...:` loop.
+    stream = OPENAI_CLIENT.chat.completions.create(
         model="gpt-4o-mini",
         messages=[
             {"role": "system", "content": role},
             {"role": "user", "content": query},
         ],
-        max_tokens=600,
         stream=True,
         temperature=0.4,
-    ):
-        if "choices" in chunk and len(chunk["choices"]) > 0:
-            yield chunk["choices"][0]["delta"]["content"]
+    )
 
+    for chunk in stream:
+        logger.debug(f"Stream chunk from OpenAI: {chunk}")
+        if chunk.choices[0].delta.content is not None:
+            yield chunk.choices[0].delta.content
 
-@router.post("/assist", response_model=AssistResponse)
+@router.post("/assist")
 def assist(request: AssistRequest):
     """
-    Endpoint to handle AI assistance queries tailored for Lucid Motor.
-
-    Args:
-        request (AssistRequest): The user's query.
-
-    Returns:
-        AssistResponse: The AI-generated answer.
-
-    Raises:
-        HTTPException: If there's an error with the OpenAI API or
-        processing the request.
+    Endpoint to handle AI assistance queries tailored for Lucid Motors.
+    Returns a StreamingResponse that streams text from OpenAI.
     """
     query = request.query.strip()
     start_time = time.time()
@@ -120,64 +126,42 @@ def assist(request: AssistRequest):
 
     # Fuzzy match cache check
     cached_query = find_fuzzy_match(query)
+    logger.debug(f"Cached query: {cached_query}, is query in cache? {query in cache}")
 
+    # If a fuzzy match exists or exact query is in cache, return cached response as a stream
     if cached_query or (query in cache):
-        query = cached_query or query
-        logger.info(f"Serving fuzzy cached response for query: {query}")
-        return StreamingResponse(
-            iter([cache[query]]), media_type="text/plain"
-        )
+        query_key = cached_query or query
+        logger.info(f"Serving fuzzy cached response for query: {query_key}")
 
+        def cached_gen():
+            yield cache[query_key]
+
+        return StreamingResponse(cached_gen(), media_type="text/plain")
+
+    # Otherwise, stream from OpenAI and update the cache once the full response is accumulated
     try:
-        role = f"""
-                You are an advanced AI assistant representing Lucid Motors, a premier brand
-                known for redefining luxury electric vehicles. Your goal is to engage
-                discerning clientele who value innovation, sustainability, and performance. You are deeply knowledgeable about the Lucid lineup, including the Air, and Gravity models, and you provide personalized assistance to customers at every stage of their journey.
+        def generate_and_cache(user_query: str):
+            collected_chunks = []
+            for chunk in stream_openai_response(user_query):
+                collected_chunks.append(chunk)
+                # Stream out each chunk to the client
+                yield chunk
 
-                Key areas of expertise include:
-                - Articulating the luxurious features, cutting-edge technology, efficiency, build qualiry, and bespoke
-                  customization options of Lucid vehicles.
-                - Providing tailored advice on maintenance schedules, optimal performance
-                  upkeep, and addressing high-end client concerns.
-                - Educating customers on the benefits of electric vehicles, including environmental impact, cost savings, and advanced driving experiences.
-                - Offering premium support on warranties, concierge services, and
-                  seamless issue resolution.
-                - Guiding prospective buyers through sales processes, highlighting unique
-                  financing options, exclusive dealership experiences, and availability.
-                - Engaging with Lucid Motors enthusiasts, fostering brand loyalty, and sharing the latest updates on upcoming models, events, and partnerships.
-                - Promotion of Lucid's commitment to sustainability, innovation, and the future of mobility.
-                - Comparing Lucid vehicles with competitors, showcasing the brand's unique value proposition and superior performance as well as addressing any concerns or misconceptions.
-                - Highlighting the safety features, autonomous driving capabilities, and cutting-edge technology that set Lucid vehicles apart in the luxury EV market.
+            # Once done streaming, cache the full answer
+            final_answer = "".join(collected_chunks)
+            cache[user_query] = final_answer
 
-                When answering, exude sophistication, professionalism, and a client-centric
-                approach. Anticipate the elevated expectations of Lucid Motors clientele by
-                delivering responses that are thorough, aspirational, and actionable. Always finish your response within {RESPONSE_LENGTH} tokens.
-
-                User Query: {request.query}
-
-                AI Response:
-                """
-
-        response = OPENAI_CLIENT.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": role or "You are helpful."},
-                {"role": "user", "content": request.query},
-            ],
-            max_tokens=RESPONSE_LENGTH,
-            temperature=0.4,
-        )
         end_time = time.time()
         logger.info(
-            f"OpenAI API request completed in "
-            f"{end_time - start_time:.2f} seconds"
+            f"OpenAI streaming request started for query '{query}' at {start_time:.2f} "
+            f"and ended at {end_time:.2f}"
         )
 
-        answer = response.choices[0].message.content.strip()
+        return StreamingResponse(
+            generate_and_cache(query),
+            media_type="text/plain"
+        )
 
-        cache[query] = answer
-
-        return AssistResponse(answer=answer)
     except Exception as e:
-        logger.error("Error in /live-chat: %s", e)
+        logger.error("Error in /assist: %s", e)
         raise HTTPException(500, f"Live chat failed: {e}") from e

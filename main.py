@@ -19,7 +19,8 @@ app = FastAPI()
 async def log_request(request: Request, call_next):
     body = await request.body()
     logger.info(
-        f"Incoming Request: {request.method} {request.url} Body: {body.decode('utf-8')}"
+        f"Incoming Request: {request.method} {request.url} "
+        f"Body: {body.decode('utf-8')}"
     )
     response = await call_next(request)
     return response

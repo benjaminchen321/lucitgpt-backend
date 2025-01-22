@@ -1,11 +1,11 @@
 python-jose[cryptography]
 passlib[bcrypt]
 pydantic[email]
+python-dotenv[cli]
 fastapi
 uvicorn
 sqlalchemy
 psycopg2-binary
-python-dotenv
 faker
 sentry-sdk
 pytest
